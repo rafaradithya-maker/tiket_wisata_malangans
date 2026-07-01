@@ -1,0 +1,269 @@
+# ✅ STARTING CHECKLIST - TIKET WISATA MALANG
+
+## 🚀 Sebelum Mulai Gunakan Aplikasi
+
+### Step 1: Verifikasi XAMPP ✓
+- [ ] Buka XAMPP Control Panel
+- [ ] Pastikan Apache status **Running** (warna hijau)
+- [ ] Pastikan MySQL status **Running** (warna hijau)
+- [ ] Klik tombol "Start" jika belum running
+
+### Step 2: Verifikasi Database ✓
+- [ ] Buka browser: `http://localhost/phpmyadmin`
+- [ ] Database `tiket_malang` sudah ada
+- [ ] 8 tables semuanya present
+- [ ] Sample data ada (Jatimpark & Gunung Bromo)
+
+**Jika database belum ada:**
+- Import file: `C:\xampp\htdocs\wisata_malang\db_init.sql`
+- Username: root, Password: (kosong)
+
+### Step 3: Verifikasi File Project ✓
+- [ ] Folder `C:\xampp\htdocs\wisata_malang\` ada
+- [ ] File `index.php` ada
+- [ ] File `config.php` ada
+- [ ] Semua file PHP ada di folder
+
+**Jika file tidak ada:**
+- Clone dari GitHub: `https://github.com/rafaradithya-maker/tiket_wisata_malangans`
+- Atau copy dari backup
+
+---
+
+## 🔍 Quick System Check (WAJIB DILAKUKAN)
+
+### ✅ Check 1: Status System
+```
+Buka: http://localhost/wisata_malang/status_check.php
+```
+**Harus melihat:**
+- Persentase 100% (hijau)
+- Semua items berwarna HIJAU ✓
+- Tidak ada warning atau error
+
+**Jika ada error:**
+- Baca pesan error dengan cermat
+- Ikuti instruksi troubleshooting di bawah
+- Jangan lanjut sampai semua status OK
+
+### ✅ Check 2: Diagnostics
+```
+Buka: http://localhost/wisata_malang/diagnose.php
+```
+**Harus melihat:**
+- PHP Version ✓
+- MySQL Connection ✓
+- All 8 Tables ✓
+- All required files ✓
+
+### ✅ Check 3: Homepage Load
+```
+Buka: http://localhost/wisata_malang/
+```
+**Harus melihat:**
+- Homepage dengan navbar
+- Hero section
+- Fitur showcase
+- Tidak ada error di console (F12)
+
+---
+
+## 🔓 Login Pertama Kali
+
+### Opsi 1: Buat Akun Baru
+1. Buka: `http://localhost/wisata_malang/register.php`
+2. Isi form:
+   - Nama: Nama Anda
+   - Username: username (contoh: testuser)
+   - Password: password123
+3. Klik "Register"
+4. Redirect ke login.php
+5. Login dengan username & password yang dibuat
+
+### Opsi 2: Gunakan Akun Test (jika sudah ada)
+```
+Username: test_user
+Password: password123
+```
+
+---
+
+## 🎯 Test Fitur Dasar (Mandatory)
+
+### ✅ Test 1: Lihat Wisata
+1. Login ke akun Anda
+2. Klik menu "🏖️ Wisata"
+3. Seharusnya melihat:
+   - Jatimpark 1 (Rp 150,000)
+   - Gunung Bromo (Rp 120,000)
+4. Coba search: ketik "jatim"
+5. Coba filter: pilih kategori
+
+**Status:**
+- [ ] Wisata list muncul
+- [ ] Search working
+- [ ] Filter working
+
+### ✅ Test 2: Baca Review
+1. Klik salah satu wisata (Jatimpark)
+2. Scroll ke bawah ke "Reviews"
+3. Seharusnya melihat ulasan pengunjung
+4. Coba tambah review:
+   - Pilih rating 5 bintang
+   - Tulis review: "Tempat yang bagus!"
+   - Klik "Kirim Review"
+
+**Status:**
+- [ ] Reviews muncul
+- [ ] Bisa tambah review
+- [ ] Review tersimpan di database
+
+### ✅ Test 3: Dashboard User
+1. Klik menu "👤 Dashboard"
+2. Seharusnya melihat:
+   - Info profile Anda
+   - Riwayat tiket (kosong jika baru)
+   - Total pembelian
+
+**Status:**
+- [ ] Dashboard load
+- [ ] Info profile correct
+- [ ] Session working (tidak logout)
+
+---
+
+## 🧪 Test API (Advanced)
+
+### Jika ingin test API:
+1. Buka: `http://localhost/wisata_malang/test_api.php`
+2. Klik tombol test untuk berbagai endpoint:
+   - "Get All Wisata" - lihat response JSON
+   - "Search Wisata" - test search
+   - "Get Statistics" - lihat analytics
+3. Response harus format JSON valid
+
+---
+
+## 📊 Troubleshooting Guide
+
+### ❌ Problem: "Connection refused"
+**Solution:**
+1. Buka XAMPP Control Panel
+2. Klik "Start" untuk Apache & MySQL
+3. Tunggu sampai berwarna hijau
+4. Refresh browser
+
+### ❌ Problem: "Database not found"
+**Solution:**
+1. Buka phpMyAdmin: `http://localhost/phpmyadmin`
+2. Klik tab "Import"
+3. Browse file: `db_init.sql`
+4. Klik "Import"
+5. Tunggu sampai success
+
+### ❌ Problem: "Session not working / Logout sendiri"
+**Solution:**
+1. Buka `http://localhost/wisata_malang/status_check.php`
+2. Cek "Session Support" harus ✓ OK
+3. Clear browser cookies:
+   - Tekan F12
+   - Tab Application
+   - Hapus cookies localhost
+4. Refresh dan coba login lagi
+
+### ❌ Problem: "File not found / 404"
+**Solution:**
+1. Pastikan folder: `C:\xampp\htdocs\wisata_malang\`
+2. Pastikan file ada di folder
+3. Cek URL benar: `http://localhost/wisata_malang/file.php`
+4. Buka diagnostic: `http://localhost/wisata_malang/diagnose.php`
+
+### ❌ Problem: "API returns error"
+**Solution:**
+1. Buka browser DevTools (F12)
+2. Tab "Network"
+3. Coba akses endpoint
+4. Lihat response
+5. Periksa error message
+6. Buka `test_api.php` untuk test terstruktur
+
+---
+
+## 📱 URLs Penting (Bookmark These!)
+
+```
+HOMEPAGE
+├─ Index           : http://localhost/wisata_malang/
+├─ Home            : http://localhost/wisata_malang/home.php
+
+USER FEATURES
+├─ Register        : http://localhost/wisata_malang/register.php
+├─ Login           : http://localhost/wisata_malang/login.php
+├─ Dashboard       : http://localhost/wisata_malang/dashboard_user.php
+├─ Wisata          : http://localhost/wisata_malang/wisata.php
+├─ Pesan           : http://localhost/wisata_malang/pesan.php
+├─ Riwayat         : http://localhost/wisata_malang/riwayat.php
+
+ADMIN FEATURES
+├─ Admin Dashboard : http://localhost/wisata_malang/dashboard_admin.php
+├─ Logout          : http://localhost/wisata_malang/logout.php
+
+TOOLS
+├─ Status Check    : http://localhost/wisata_malang/status_check.php
+├─ Diagnostics     : http://localhost/wisata_malang/diagnose.php
+├─ Test API        : http://localhost/wisata_malang/test_api.php
+
+DATABASE
+├─ PhpMyAdmin      : http://localhost/phpmyadmin
+```
+
+---
+
+## 📚 Documentation Files (Baca sesuai kebutuhan)
+
+| File | Isi | Untuk |
+|------|-----|-------|
+| QUICK_START.txt | Getting started | Pemula |
+| PANDUAN_LENGKAP.md | Panduan lengkap | Pengguna |
+| API_DOCUMENTATION.md | API reference | Developer |
+| DATABASE_SETUP.md | Database docs | Admin |
+| VERIFICATION_REPORT.md | Fitur check | Verifikasi |
+| FINAL_SUMMARY.md | Ringkasan akhir | Review |
+
+---
+
+## ✅ Final Checklist Sebelum Mulai
+
+Pastikan sudah dikerjakan:
+
+- [ ] XAMPP Apache running ✓
+- [ ] XAMPP MySQL running ✓
+- [ ] Database tiket_malang ada ✓
+- [ ] Buka status_check.php - 100% OK ✓
+- [ ] Buka diagnose.php - semua ✓ ✓
+- [ ] Homepage bisa diakses ✓
+- [ ] Bisa register akun baru ✓
+- [ ] Bisa login ✓
+- [ ] Lihat wisata list ✓
+- [ ] Dashboard user working ✓
+
+**Jika semua OK:** ✅ **SIAP DIGUNAKAN!**
+
+---
+
+## 🎊 Selamat!
+
+Aplikasi Tiket Wisata Malang siap digunakan. Semua fitur telah:
+- ✅ Ditest
+- ✅ Verified
+- ✅ Documented
+- ✅ Deployed ke GitHub
+
+**Nikmati menggunakan Tiket Wisata Malang!**
+
+---
+
+**Version**: 2.0 (Full Stack)  
+**Status**: ✅ FULLY FUNCTIONAL  
+**Last Updated**: 2026-01-19  
+**Repository**: https://github.com/rafaradithya-maker/tiket_wisata_malangans
