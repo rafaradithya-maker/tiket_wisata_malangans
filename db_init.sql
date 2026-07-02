@@ -10,10 +10,34 @@ CREATE TABLE IF NOT EXISTS `users` (
     `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Tabel untuk informasi wisata (Dinaikkan ke atas karena tabel 'tiket' & 'reviews' mereferensikannya)
+CREATE TABLE IF NOT EXISTS `wisata` (
+    `id_wisata` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `nama_wisata` VARCHAR(255) NOT NULL UNIQUE,
+    `deskripsi` LONGTEXT,
+    `lokasi` VARCHAR(255) NOT NULL,
+    `harga_tiket` INT UNSIGNED NOT NULL,
+    `jam_buka` TIME,
+    `jam_tutup` TIME,
+    `kategori` VARCHAR(100),
+    `rating` DECIMAL(3,2) DEFAULT 0.00,
+    `total_review` INT UNSIGNED DEFAULT 0,
+    `gambar_url` VARCHAR(500),
+    `lat` DECIMAL(10, 8),
+    `lon` DECIMAL(11, 8),
+    `no_hp_contact` VARCHAR(20),
+    `email_contact` VARCHAR(100),
+    `status_aktif` BOOLEAN DEFAULT TRUE,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX `idx_wisata_nama` (`nama_wisata`),
+    INDEX `idx_wisata_kategori` (`kategori`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS `tiket` (
     `id_tiket` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `user_id` INT UNSIGNED NOT NULL,
-    `wisata` VARCHAR(255) NOT NULL,
+    `wisata` VARCHAR(255) NOT NULL, -- Redundan dengan tabel wisata, tapi aman jika untuk snapshot nama wisata masa lalu
     `jumlah` INT UNSIGNED NOT NULL DEFAULT 1,
     `total_harga` INT UNSIGNED NOT NULL DEFAULT 0,
     `tgl_beli` DATETIME NOT NULL,
@@ -75,30 +99,6 @@ CREATE TABLE IF NOT EXISTS `analytics` (
     UNIQUE KEY `uk_analytics_date` (`tanggal`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Tabel untuk informasi wisata
-CREATE TABLE IF NOT EXISTS `wisata` (
-    `id_wisata` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `nama_wisata` VARCHAR(255) NOT NULL UNIQUE,
-    `deskripsi` LONGTEXT,
-    `lokasi` VARCHAR(255) NOT NULL,
-    `harga_tiket` INT UNSIGNED NOT NULL,
-    `jam_buka` TIME,
-    `jam_tutup` TIME,
-    `kategori` VARCHAR(100),
-    `rating` DECIMAL(3,2) DEFAULT 0.00,
-    `total_review` INT UNSIGNED DEFAULT 0,
-    `gambar_url` VARCHAR(500),
-    `lat` DECIMAL(10, 8),
-    `lon` DECIMAL(11, 8),
-    `no_hp_contact` VARCHAR(20),
-    `email_contact` VARCHAR(100),
-    `status_aktif` BOOLEAN DEFAULT TRUE,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX `idx_wisata_nama` (`nama_wisata`),
-    INDEX `idx_wisata_kategori` (`kategori`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 -- Tabel untuk review/ulasan wisata
 CREATE TABLE IF NOT EXISTS `reviews` (
     `id_review` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -124,31 +124,33 @@ CREATE TABLE IF NOT EXISTS `fasilitas_wisata` (
     CONSTRAINT `fk_fasilitas_wisata` FOREIGN KEY (`id_wisata`) REFERENCES `wisata`(`id_wisata`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insert data Jatimpark
+
+--- ==========================================
+--- PROSES INSERT DATA (SUDAH DIPERBAIKI)
+--- ==========================================
+
+-- Insert data Jatimpark 1
 INSERT INTO wisata (nama_wisata, deskripsi, lokasi, harga_tiket, jam_buka, jam_tutup, kategori, rating, gambar_url, lat, lon, no_hp_contact, email_contact) VALUES
 ('Jatimpark 1', 'Jatimpark 1 adalah wahana permainan keluarga terbesar di Jawa Timur yang menghadirkan lebih dari 20 permainan edukatif dan rekreatif. Cocok untuk anak-anak dan keluarga dengan berbagai atraksi seru seperti rumah hantu, labirin, flying fox, dan berbagai permainan interaktif lainnya.', 'Jl. Oro-Oro Dowo, Kota Batu, Jawa Timur', 150000, '09:00:00', '17:00:00', 'Taman Hiburan', 4.50, 'https://via.placeholder.com/jatimpark1.jpg', -7.8945, 112.3050, '0341-597711', 'info@jatimpark.com');
 
+-- Insert data Gunung Bromo
 INSERT INTO wisata (nama_wisata, deskripsi, lokasi, harga_tiket, jam_buka, jam_tutup, kategori, rating, gambar_url, lat, lon, no_hp_contact, email_contact) VALUES
 ('Gunung Bromo', 'Gunung Bromo adalah salah satu gunung berapi paling terkenal di Indonesia dengan ketinggian 2.392 meter. Pemandangan matahari terbit dari puncak Gunung Bromo sangat menakjubkan. Terletak di tengah Taman Nasional Bromo Tengger Semeru dengan pemandangan panorama yang spektakuler.', 'Probolinggo, Pasuruan, Jawa Timur', 120000, '04:00:00', '17:00:00', 'Gunung', 4.80, 'https://via.placeholder.com/bromo.jpg', -7.9424, 112.9526, '0325-123456', 'info@bromonationalpark.com');
 
--- Insert fasilitas Jatimpark 1
+-- Insert fasilitas Jatimpark 1 (Menggunakan Subquery agar ID dinamis dan anti-error)
 INSERT INTO fasilitas_wisata (id_wisata, nama_fasilitas, keterangan, tersedia) VALUES
-(1, 'Kantin', 'Tersedia berbagai makanan dan minuman', TRUE),
-(1, 'Toilet', 'Toilet bersih dan nyaman', TRUE),
-(1, 'Parkir', 'Area parkir luas dengan keamanan 24 jam', TRUE),
-(1, 'First Aid', 'Fasilitas pertolongan pertama darurat', TRUE),
-(1, 'Mushola', 'Tempat ibadah untuk muslim', TRUE),
-(1, 'Tempat Duduk', 'Area istirahat dengan kursi dan meja', TRUE);
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Jatimpark 1'), 'Kantin', 'Tersedia berbagai makanan dan minuman', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Jatimpark 1'), 'Toilet', 'Toilet bersih dan nyaman', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Jatimpark 1'), 'Parkir', 'Area parkir luas dengan keamanan 24 jam', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Jatimpark 1'), 'First Aid', 'Fasilitas pertolongan pertama darurat', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Jatimpark 1'), 'Mushola', 'Tempat ibadah untuk muslim', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Jatimpark 1'), 'Tempat Duduk', 'Area istirahat dengan kursi dan meja', TRUE);
 
--- Insert fasilitas Gunung Bromo
+-- Insert fasilitas Gunung Bromo (Menggunakan Subquery agar ID dinamis dan anti-error)
 INSERT INTO fasilitas_wisata (id_wisata, nama_fasilitas, keterangan, tersedia) VALUES
-(2, 'Akomodasi', 'Homestay dan hotel tersedia di sekitar area', TRUE),
-(2, 'Pemandu Wisata', 'Tersedia pemandu berpengalaman', TRUE),
-(2, 'Penyewaan Kuda', 'Penyewaan kuda untuk pendakian', TRUE),
-(2, 'Warung Makan', 'Warung makan sederhana di sekitar area', TRUE),
-(2, 'Toilet', 'Toilet tersedia di beberapa titik', TRUE),
-(2, 'Pertolongan Medis', 'Pos kesehatan di base camp', TRUE);
-
--- Optional: create akun admin menggunakan hash password.
--- Contoh: php -r "echo password_hash('admin123', PASSWORD_DEFAULT) . PHP_EOL;"
--- INSERT INTO users (nama, username, password, role) VALUES ('Admin', 'admin', '<HASHED_PASSWORD>', 'admin');
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Gunung Bromo'), 'Akomodasi', 'Homestay dan hotel tersedia di sekitar area', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Gunung Bromo'), 'Pemandu Wisata', 'Tersedia pemandu berpengalaman', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Gunung Bromo'), 'Penyewaan Kuda', 'Penyewaan kuda untuk pendakian', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Gunung Bromo'), 'Warung Makan', 'Warung makan sederhana di sekitar area', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Gunung Bromo'), 'Toilet', 'Toilet tersedia di beberapa titik', TRUE),
+((SELECT id_wisata FROM wisata WHERE nama_wisata = 'Gunung Bromo'), 'Pertolongan Medis', 'Pos kesehatan di base camp', TRUE);

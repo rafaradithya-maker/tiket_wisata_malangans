@@ -9,28 +9,52 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'user') {
 }
 
 $wisata_dipilih = isset($_GET['wisata']) ? $_GET['wisata'] : "Destinasi Umum";
-$harga_tiket = ($wisata_dipilih == "Jatim Park") ? 100000 : 75000;
+$wisata_safe = mysqli_real_escape_string($conn, $wisata_dipilih);
+$harga_tiket = 75000;
+$result = mysqli_query($conn, "SELECT harga_tiket FROM wisata WHERE nama_wisata = '$wisata_safe' LIMIT 1");
+if ($result && $row = mysqli_fetch_assoc($result)) {
+    $harga_tiket = (int)$row['harga_tiket'];
+}
 
 if (isset($_POST['bayar'])) {
-    $user_id = $_SESSION['user_id'];
-    $wisata = $_POST['wisata'];
-    $jumlah = $_POST['jumlah'];
+    $user_id = (int) $_SESSION['user_id'];
+    $wisata = bersih_data($_POST['wisata']);
+    $jumlah = max(1, (int) $_POST['jumlah']);
+    $payment_method = bersih_data($_POST['payment_method'] ?? 'bank_transfer');
     $total_harga = $jumlah * $harga_tiket;
-    $tgl_beli = date('Y-m-d');
-    $status = "lunas"; // Set lunas untuk simulasi sederhana
-    $kode_barcode = "TIC-" . strtoupper(substr(md5(time()), 0, 8));
+    $tgl_beli = date('Y-m-d H:i:s');
+    $status = 'pending';
+    $kode_barcode = 'TIC-' . strtoupper(substr(md5(time()), 0, 8));
+    $transaction_id = 'TRX-' . time() . '-' . rand(1000, 9999);
 
-    $query = "INSERT INTO tiket (user_id, wisata, jumlah, total_harga, tgl_beli, status, kode_barcode) 
-              VALUES ('$user_id', '$wisata', '$jumlah', '$total_harga', '$tgl_beli', '$status', '$kode_barcode')";
+    $stmt = $conn->prepare("INSERT INTO tiket (user_id, wisata, jumlah, total_harga, tgl_beli, status, kode_barcode, payment_method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+    $stmt->bind_param('isisssss', $user_id, $wisata, $jumlah, $total_harga, $tgl_beli, $status, $kode_barcode, $payment_method);
 
-    if (mysqli_query($conn, $query)) {
-        echo "<script>
-                alert('Pembayaran Berhasil! Tiket Anda telah terbit.');
-                window.location.href = 'dashboard_user.php';
-              </script>";
-    } else {
-        echo "Error: " . mysqli_error($conn);
+    if ($stmt->execute()) {
+        $tiket_id = $stmt->insert_id;
+
+        $stmt2 = $conn->prepare("INSERT INTO payments (id_tiket, user_id, jumlah, payment_method, payment_status, transaction_id) VALUES (?, ?, ?, ?, 'pending', ?)");
+        $stmt2->bind_param('iiiss', $tiket_id, $user_id, $total_harga, $payment_method, $transaction_id);
+
+        if ($stmt2->execute()) {
+            $payment_id = $stmt2->insert_id;
+            $stmt3 = $conn->prepare("UPDATE tiket SET payment_id = ? WHERE id_tiket = ?");
+            $stmt3->bind_param('ii', $payment_id, $tiket_id);
+            $stmt3->execute();
+
+            echo "<script>
+                    alert('Pesanan tiket berhasil dibuat. Silakan lanjutkan pembayaran di dashboard.');
+                    window.location.href = 'dashboard_user.php';
+                  </script>";
+            exit;
+        }
+
+        echo "Error saat membuat pembayaran: " . $stmt2->error;
+        exit;
     }
+
+    echo "Error: " . $stmt->error;
+    exit;
 }
 ?>
 
@@ -83,6 +107,14 @@ if (isset($_POST['bayar'])) {
                     <input type="number" name="jumlah" id="jumlah" min="1" value="1" 
                            class="bg-blue-600/20 border border-blue-500/30 text-white text-center w-20 py-1 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
                            oninput="updateTotal(this.value)">
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-500 text-xs font-bold uppercase tracking-widest">Metode Pembayaran</span>
+                    <select name="payment_method" class="bg-slate-900 border border-slate-700 text-white rounded-lg px-3 py-2" style="background-color:#0f172a; color:#ffffff;">
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="ewallet">E-Wallet</option>
+                        <option value="midtrans">Midtrans</option>
+                    </select>
                 </div>
             </div>
 

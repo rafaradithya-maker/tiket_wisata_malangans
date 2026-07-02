@@ -4,7 +4,9 @@
  * Support untuk Midtrans, Bank Transfer, E-Wallet
  */
 
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 require 'config.php';
 
 // Konfigurasi Midtrans
@@ -217,13 +219,15 @@ class PaymentGateway {
 
 // API Endpoint untuk pembayaran
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    header('Content-Type: application/json');
-
     $action = $_GET['action'] ?? '';
-    $payment = new PaymentGateway($conn);
+    $data = json_decode(file_get_contents('php://input'), true);
+    if (!$data) {
+        $data = $_POST;
+    }
 
     if ($action === 'initiate') {
-        $data = json_decode(file_get_contents('php://input'), true);
+        header('Content-Type: application/json');
+        $payment = new PaymentGateway($conn);
         $result = $payment->initiate_payment(
             $data['tiket_id'] ?? null,
             $_SESSION['user_id'] ?? null,
@@ -231,30 +235,115 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data['payment_method'] ?? 'midtrans'
         );
         echo json_encode($result);
+        exit;
     }
 
-    if ($action === 'webhook') {
-        $notification = json_decode(file_get_contents('php://input'), true);
-        $result = $payment->verify_midtrans_notification($notification);
-        echo json_encode($result);
+    if ($action === 'confirm') {
+        if (!isset($_SESSION['user_id'])) {
+            if (!empty($_POST)) {
+                header('Location: login.php');
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => false, 'message' => 'Silakan login terlebih dahulu.']);
+            }
+            exit;
+        }
+
+        $user_id = (int) $_SESSION['user_id'];
+        $tiket_id = (int) ($data['tiket_id'] ?? 0);
+        $payment_id = (int) ($data['payment_id'] ?? 0);
+
+        if (!$tiket_id || !$payment_id) {
+            if (!empty($_POST)) {
+                header('Location: dashboard_user.php?payment=failed');
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => false, 'message' => 'Data pembayaran tidak lengkap.']);
+            }
+            exit;
+        }
+
+        $stmt = $conn->prepare("UPDATE payments SET payment_status = 'success' WHERE id_payment = ? AND id_tiket = ? AND user_id = ? AND payment_status = 'pending'");
+        $stmt->bind_param('iii', $payment_id, $tiket_id, $user_id);
+        $stmt->execute();
+
+        if ($stmt->affected_rows > 0) {
+            $stmt2 = $conn->prepare("UPDATE tiket SET status = 'lunas' WHERE id_tiket = ? AND user_id = ?");
+            $stmt2->bind_param('ii', $tiket_id, $user_id);
+            $stmt2->execute();
+            if (!empty($_POST)) {
+                header('Location: dashboard_user.php?payment=success');
+            } else {
+                header('Content-Type: application/json');
+                echo json_encode(['status' => true, 'message' => 'Pembayaran berhasil dikonfirmasi.']);
+            }
+            exit;
+        }
+
+        if (!empty($_POST)) {
+            header('Location: dashboard_user.php?payment=failed');
+        } else {
+            header('Content-Type: application/json');
+            echo json_encode(['status' => false, 'message' => 'Pembayaran tidak dapat dikonfirmasi.']);
+        }
+        exit;
     }
 }
 
-// API Endpoint untuk get status
+// Halaman dan API GET
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    header('Content-Type: application/json');
-    
     $action = $_GET['action'] ?? '';
+    if ($action === 'initiate' && isset($_GET['tiket_id'])) {
+        if (!isset($_SESSION['user_id'])) {
+            header('Location: login.php');
+            exit;
+        }
+
+        $tiket_id = (int) $_GET['tiket_id'];
+        $user_id = (int) $_SESSION['user_id'];
+
+        $stmt = $conn->prepare("SELECT * FROM tiket WHERE id_tiket = ? AND user_id = ?");
+        $stmt->bind_param('ii', $tiket_id, $user_id);
+        $stmt->execute();
+        $tiket = $stmt->get_result()->fetch_assoc();
+
+        if (!$tiket) {
+            echo '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><title>Pembayaran Tidak Ditemukan</title></head><body><p>Tiket tidak ditemukan atau Anda tidak memiliki akses.</p><p><a href="dashboard_user.php">Kembali ke Dashboard</a></p></body></html>';
+            exit;
+        }
+
+        $payment = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM payments WHERE id_tiket = {$tiket_id} AND user_id = {$user_id} ORDER BY created_at DESC LIMIT 1"));
+
+        if (!$payment) {
+            $transaction_id = 'TRX-' . time() . '-' . rand(1000, 9999);
+            mysqli_query($conn, "INSERT INTO payments (id_tiket, user_id, jumlah, payment_method, payment_status, transaction_id) VALUES ({$tiket_id}, {$user_id}, {$tiket['total_harga']}, 'bank_transfer', 'pending', '{$transaction_id}')");
+            $payment_id = mysqli_insert_id($conn);
+            mysqli_query($conn, "UPDATE tiket SET payment_id = '{$payment_id}' WHERE id_tiket = {$tiket_id}");
+            $payment = mysqli_fetch_assoc(mysqli_query($conn, "SELECT * FROM payments WHERE id_payment = {$payment_id}"));
+        }
+
+        $status_label = $payment['payment_status'] === 'pending' ? 'Menunggu Pembayaran' : 'Terbayar';
+        $button_disabled = $payment['payment_status'] !== 'pending' ? 'disabled' : '';
+        $button_text = $payment['payment_status'] !== 'pending' ? 'Pembayaran Selesai' : 'Konfirmasi Pembayaran';
+
+        echo '<!DOCTYPE html><html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Konfirmasi Pembayaran</title><link rel="stylesheet" href="https://cdn.tailwindcss.com"><style>body{font-family:Arial,sans-serif;background:#050b18;color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;} .glass{background:rgba(255,255,255,0.08);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.12);border-radius:24px;max-width:520px;width:100%;padding:30px;} .btn{display:inline-flex;align-items:center;justify-content:center;width:100%;padding:14px 18px;border-radius:18px;border:none;font-weight:700;cursor:pointer;}.btn-primary{background:#3b82f6;color:#fff;}.btn-secondary{background:rgba(255,255,255,0.08);color:#fff;}.field{margin-bottom:18px;} .field label{display:block;font-size:0.82rem;color:#9ca3af;margin-bottom:8px;} .field span{display:block;font-size:1rem;color:#fff;}
+</style></head><body><div class="glass"><h1 class="text-3xl font-bold mb-4">Konfirmasi Pembayaran</h1><div class="field"><label>Destinasi</label><span>' . htmlspecialchars($tiket['wisata']) . '</span></div><div class="field"><label>Jumlah Tiket</label><span>' . htmlspecialchars($tiket['jumlah']) . ' tiket</span></div><div class="field"><label>Total Harga</label><span>Rp ' . number_format($tiket['total_harga'], 0, ',', '.') . '</span></div><div class="field"><label>Status Pembayaran</label><span>' . $status_label . '</span></div><div class="field"><label>Metode Pembayaran</label><span>' . htmlspecialchars($payment['payment_method']) . '</span></div><form action="payment_gateway.php?action=confirm" method="POST"><input type="hidden" name="tiket_id" value="' . $tiket_id . '"><input type="hidden" name="payment_id" value="' . $payment['id_payment'] . '"><button type="submit" class="btn btn-primary" ' . $button_disabled . '>' . $button_text . '</button></form><a href="dashboard_user.php" class="btn btn-secondary mt-3">Kembali ke Dashboard</a></div></body></html>';
+        exit;
+    }
+
+    header('Content-Type: application/json');
     $payment = new PaymentGateway($conn);
 
     if ($action === 'check' && isset($_GET['payment_id'])) {
         $result = $payment->check_payment_status($_GET['payment_id']);
         echo json_encode($result ?? ['status' => false, 'message' => 'Pembayaran tidak ditemukan']);
+        exit;
     }
 
     if ($action === 'history') {
         $result = $payment->get_payment_history($_SESSION['user_id'] ?? 0);
         echo json_encode($result);
+        exit;
     }
 }
 ?>

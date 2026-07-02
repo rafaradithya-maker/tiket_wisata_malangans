@@ -4,8 +4,6 @@
  * Menampilkan dan mengelola informasi wisata
  */
 
-session_start();
-
 require 'config.php';
 
 class WisataManager {
@@ -144,7 +142,11 @@ class WisataManager {
      * Tambah review (user)
      */
     public function add_review($id_wisata, $user_id, $rating, $ulasan) {
-        // Validasi
+        if (!$id_wisata || !$user_id) {
+            return ['status' => false, 'message' => 'Data review tidak lengkap'];
+        }
+
+        $rating = (int) $rating;
         if ($rating < 1 || $rating > 5) {
             return ['status' => false, 'message' => 'Rating harus antara 1-5'];
         }
@@ -162,7 +164,7 @@ class WisataManager {
         // Insert review
         $query = "INSERT INTO reviews (id_wisata, user_id, rating, ulasan) VALUES (?, ?, ?, ?)";
         $stmt = $this->conn->prepare($query);
-        $stmt->bind_param('iis', $id_wisata, $user_id, $rating, $ulasan);
+        $stmt->bind_param('iiis', $id_wisata, $user_id, $rating, $ulasan);
 
         if ($stmt->execute()) {
             // Update rating di tabel wisata
@@ -352,115 +354,121 @@ class WisataManager {
 }
 
 // API Endpoints
-header('Content-Type: application/json');
+if (basename(__FILE__) === basename($_SERVER['SCRIPT_FILENAME'])) {
+    header('Content-Type: application/json');
 
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $action = $_GET['action'] ?? '';
-    $wisata = new WisataManager($conn);
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        $action = $_GET['action'] ?? '';
+        $wisata = new WisataManager($conn);
 
-    // Get all wisata
-    if ($action === 'all') {
-        $limit = $_GET['limit'] ?? null;
-        $result = $wisata->get_all_wisata($limit);
-        echo json_encode($result);
+        // Get all wisata
+        if ($action === 'all') {
+            $limit = $_GET['limit'] ?? null;
+            $result = $wisata->get_all_wisata($limit);
+            echo json_encode($result);
+        }
+
+        // Get wisata detail
+        if ($action === 'detail' && isset($_GET['id'])) {
+            $result = $wisata->get_wisata_detail($_GET['id']);
+            echo json_encode($result ?? ['status' => false, 'message' => 'Wisata tidak ditemukan']);
+        }
+
+        // Search wisata
+        if ($action === 'search' && isset($_GET['q'])) {
+            $result = $wisata->search_wisata($_GET['q']);
+            echo json_encode($result);
+        }
+
+        // Filter by kategori
+        if ($action === 'filter_kategori' && isset($_GET['kategori'])) {
+            $result = $wisata->filter_by_kategori($_GET['kategori']);
+            echo json_encode($result);
+        }
+
+        // Get categories
+        if ($action === 'categories') {
+            $result = $wisata->get_categories();
+            echo json_encode($result);
+        }
+
+        // Filter by price
+        if ($action === 'filter_price' && isset($_GET['min']) && isset($_GET['max'])) {
+            $result = $wisata->filter_by_price($_GET['min'], $_GET['max']);
+            echo json_encode($result);
+        }
+
+        // Filter by rating
+        if ($action === 'filter_rating' && isset($_GET['min_rating'])) {
+            $result = $wisata->filter_by_rating($_GET['min_rating']);
+            echo json_encode($result);
+        }
+
+        // Top wisata
+        if ($action === 'top') {
+            $limit = $_GET['limit'] ?? 5;
+            $result = $wisata->get_top_wisata($limit);
+            echo json_encode($result);
+        }
+
+        // Trending wisata
+        if ($action === 'trending') {
+            $limit = $_GET['limit'] ?? 5;
+            $result = $wisata->get_trending_wisata($limit);
+            echo json_encode($result);
+        }
+
+        // Wisata stats
+        if ($action === 'stats') {
+            $result = $wisata->get_wisata_stats();
+            echo json_encode($result);
+        }
+
+        // Nearby wisata
+        if ($action === 'nearby' && isset($_GET['lat']) && isset($_GET['lon'])) {
+            $radius = $_GET['radius'] ?? 50;
+            $result = $wisata->get_nearby_wisata($_GET['lat'], $_GET['lon'], $radius);
+            echo json_encode($result);
+        }
     }
 
-    // Get wisata detail
-    if ($action === 'detail' && isset($_GET['id'])) {
-        $result = $wisata->get_wisata_detail($_GET['id']);
-        echo json_encode($result ?? ['status' => false, 'message' => 'Wisata tidak ditemukan']);
-    }
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_GET['action'] ?? '';
+        $data = json_decode(file_get_contents('php://input'), true);
+        $wisata = new WisataManager($conn);
 
-    // Search wisata
-    if ($action === 'search' && isset($_GET['q'])) {
-        $result = $wisata->search_wisata($_GET['q']);
-        echo json_encode($result);
-    }
+        // Add review
+        if ($action === 'add_review') {
+            if (!isset($_SESSION['user_id'])) {
+                echo json_encode(['status' => false, 'message' => 'Silakan login terlebih dahulu untuk mengirim review.']);
+                exit;
+            }
+            $result = $wisata->add_review(
+                $data['id_wisata'] ?? null,
+                $_SESSION['user_id'],
+                $data['rating'] ?? null,
+                $data['ulasan'] ?? ''
+            );
+            echo json_encode($result);
+        }
 
-    // Filter by kategori
-    if ($action === 'filter_kategori' && isset($_GET['kategori'])) {
-        $result = $wisata->filter_by_kategori($_GET['kategori']);
-        echo json_encode($result);
-    }
+        // Add wisata (admin only)
+        if ($action === 'add' && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+            $result = $wisata->add_wisata($data);
+            echo json_encode($result);
+        }
 
-    // Get categories
-    if ($action === 'categories') {
-        $result = $wisata->get_categories();
-        echo json_encode($result);
-    }
+        // Update wisata (admin only)
+        if ($action === 'update' && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+            $result = $wisata->update_wisata($data['id_wisata'] ?? null, $data);
+            echo json_encode($result);
+        }
 
-    // Filter by price
-    if ($action === 'filter_price' && isset($_GET['min']) && isset($_GET['max'])) {
-        $result = $wisata->filter_by_price($_GET['min'], $_GET['max']);
-        echo json_encode($result);
-    }
-
-    // Filter by rating
-    if ($action === 'filter_rating' && isset($_GET['min_rating'])) {
-        $result = $wisata->filter_by_rating($_GET['min_rating']);
-        echo json_encode($result);
-    }
-
-    // Top wisata
-    if ($action === 'top') {
-        $limit = $_GET['limit'] ?? 5;
-        $result = $wisata->get_top_wisata($limit);
-        echo json_encode($result);
-    }
-
-    // Trending wisata
-    if ($action === 'trending') {
-        $limit = $_GET['limit'] ?? 5;
-        $result = $wisata->get_trending_wisata($limit);
-        echo json_encode($result);
-    }
-
-    // Wisata stats
-    if ($action === 'stats') {
-        $result = $wisata->get_wisata_stats();
-        echo json_encode($result);
-    }
-
-    // Nearby wisata
-    if ($action === 'nearby' && isset($_GET['lat']) && isset($_GET['lon'])) {
-        $radius = $_GET['radius'] ?? 50;
-        $result = $wisata->get_nearby_wisata($_GET['lat'], $_GET['lon'], $radius);
-        echo json_encode($result);
-    }
-}
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $action = $_GET['action'] ?? '';
-    $data = json_decode(file_get_contents('php://input'), true);
-    $wisata = new WisataManager($conn);
-
-    // Add review
-    if ($action === 'add_review') {
-        $result = $wisata->add_review(
-            $data['id_wisata'] ?? null,
-            $_SESSION['user_id'] ?? null,
-            $data['rating'] ?? null,
-            $data['ulasan'] ?? ''
-        );
-        echo json_encode($result);
-    }
-
-    // Add wisata (admin only)
-    if ($action === 'add' && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        $result = $wisata->add_wisata($data);
-        echo json_encode($result);
-    }
-
-    // Update wisata (admin only)
-    if ($action === 'update' && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        $result = $wisata->update_wisata($data['id_wisata'] ?? null, $data);
-        echo json_encode($result);
-    }
-
-    // Delete wisata (admin only)
-    if ($action === 'delete' && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-        $result = $wisata->delete_wisata($data['id_wisata'] ?? null);
-        echo json_encode($result);
+        // Delete wisata (admin only)
+        if ($action === 'delete' && isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+            $result = $wisata->delete_wisata($data['id_wisata'] ?? null);
+            echo json_encode($result);
+        }
     }
 }
 ?>
