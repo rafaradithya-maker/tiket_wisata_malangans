@@ -1,5 +1,4 @@
-FROM php:8.x-apache
-
+FROM php:8.2-apache
 # ... tempatkan script COPY atau instalasi extension Anda di sini ...
 
 # HAPUS MODUL YANG BENTROK SAAT BUILD TIME
