@@ -12,14 +12,14 @@ RUN ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled
     || true
 
 EXPOSE 80
-# --- Letakkan baris ini di bagian bawah Dockerfile Anda ---
+# --- Tambahkan kode ini di bagian bawah Dockerfile Anda ---
 
-# Hapus paksa symlink konfigurasi mpm_event yang menyebabkan bentrok
+# Hapus paksa file konfigurasi mpm_event yang menyebabkan bentrok
 RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
     && rm -f /etc/apache2/mods-enabled/mpm_event.conf \
     || true
 
-# Pastikan mpm_prefork (standar PHP) yang aktif
+# Pastikan mpm_prefork (modul standar PHP) yang aktif
 RUN ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load \
     && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf \
     || true
