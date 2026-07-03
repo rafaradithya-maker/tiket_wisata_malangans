@@ -1,23 +1,15 @@
-FROM php:8.2-apache
-# ... (kode Dockerfile Anda yang sudah ada di atas) ...
+FROM php:8.x-apache
 
-# 🛑 Tambahkan baris ini untuk mematikan modul MPM yang bentrok
-RUN a2dismod mpm_event || true
+# ... tempatkan script COPY atau instalasi extension Anda di sini ...
 
-# Pastikan port diarahkan ke Apache bawaan
+# HAPUS MODUL YANG BENTROK SAAT BUILD TIME
+RUN rm -f /etc/apache2/mods-enabled/mpm_event.load \
+    && rm -f /etc/apache2/mods-enabled/mpm_event.conf \
+    || true
+
+# Nyalakan kembali modul mpm_prefork yang aman untuk PHP
+RUN ln -s /etc/apache2/mods-available/mpm_prefork.load /etc/apache2/mods-enabled/mpm_prefork.load \
+    && ln -s /etc/apache2/mods-available/mpm_prefork.conf /etc/apache2/mods-enabled/mpm_prefork.conf \
+    || true
+
 EXPOSE 80
-RUN apt-get update && apt-get install -y \
-    unzip \
-    zlib1g-dev \
- && docker-php-ext-install mysqli pdo pdo_mysql \
- && rm -rf /var/lib/apt/lists/*
-
-ENV PORT=8080
-
-COPY . /var/www/html/
-
-RUN chown -R www-data:www-data /var/www/html \
- && chmod -R 755 /var/www/html
-
-EXPOSE 8080
-CMD ["bash", "-lc", "export APACHE_RUN_PORT=${PORT:-8080} && exec apache2-foreground"]
